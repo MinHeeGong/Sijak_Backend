@@ -9,7 +9,7 @@ PRAGMA foreign_keys = ON;
 -- ---------------------------------------------------------
 -- 1. users
 -- ---------------------------------------------------------
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   email         TEXT NOT NULL UNIQUE,
   display_name  TEXT,
@@ -21,7 +21,7 @@ CREATE TABLE users (
 -- 2. user_settings
 --    - 유저 1:1. 온보딩/개인화 설정값.
 -- ---------------------------------------------------------
-CREATE TABLE user_settings (
+CREATE TABLE IF NOT EXISTS user_settings (
   id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id                 INTEGER NOT NULL UNIQUE
                             REFERENCES users(id) ON DELETE CASCADE,
@@ -43,7 +43,7 @@ CREATE TABLE user_settings (
 --    - 카테고리/서브카테고리 트리 (self-reference).
 --    - project는 별도 테이블(projects)로 분리됨 (아래 3-1 참고).
 -- ---------------------------------------------------------
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS categories (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id               INTEGER NOT NULL
                           REFERENCES users(id) ON DELETE CASCADE,
@@ -57,9 +57,9 @@ CREATE TABLE categories (
   updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_categories_user      ON categories(user_id);
-CREATE INDEX idx_categories_parent    ON categories(parent_id);
-CREATE INDEX idx_categories_last_used ON categories(last_task_updated_at);
+CREATE INDEX IF NOT EXISTS idx_categories_user      ON categories(user_id);
+CREATE INDEX IF NOT EXISTS idx_categories_parent    ON categories(parent_id);
+CREATE INDEX IF NOT EXISTS idx_categories_last_used ON categories(last_task_updated_at);
 
 -- ---------------------------------------------------------
 -- 3-1. projects
@@ -70,7 +70,7 @@ CREATE INDEX idx_categories_last_used ON categories(last_task_updated_at);
 --        완료/전체 개수를 조회 시점에 계산해서 사용 (COUNT 쿼리).
 --        추후 성능 문제가 생기면 캐싱 컬럼을 추가하는 방향으로 전환.
 -- ---------------------------------------------------------
-CREATE TABLE projects (
+CREATE TABLE IF NOT EXISTS projects (
   id                    INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id               INTEGER NOT NULL
                           REFERENCES users(id) ON DELETE CASCADE,
@@ -87,16 +87,16 @@ CREATE TABLE projects (
   updated_at            TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_projects_user      ON projects(user_id);
-CREATE INDEX idx_projects_category  ON projects(category_id);
-CREATE INDEX idx_projects_parent    ON projects(parent_id);
-CREATE INDEX idx_projects_last_used ON projects(last_task_updated_at);
+CREATE INDEX IF NOT EXISTS idx_projects_user      ON projects(user_id);
+CREATE INDEX IF NOT EXISTS idx_projects_category  ON projects(category_id);
+CREATE INDEX IF NOT EXISTS idx_projects_parent    ON projects(parent_id);
+CREATE INDEX IF NOT EXISTS idx_projects_last_used ON projects(last_task_updated_at);
 
 -- ---------------------------------------------------------
 -- 4. tasks
 --    - 모든 할일의 원본. category 필수(FK not null).
 -- ---------------------------------------------------------
-CREATE TABLE tasks (
+CREATE TABLE IF NOT EXISTS tasks (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id          INTEGER NOT NULL
                      REFERENCES users(id) ON DELETE CASCADE,
@@ -117,12 +117,12 @@ CREATE TABLE tasks (
   updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_tasks_user       ON tasks(user_id);
-CREATE INDEX idx_tasks_category   ON tasks(category_id);
-CREATE INDEX idx_tasks_project    ON tasks(project_id);
-CREATE INDEX idx_tasks_due_date   ON tasks(due_date);
-CREATE INDEX idx_tasks_expires_at ON tasks(expires_at);
-CREATE INDEX idx_tasks_deleted_at ON tasks(deleted_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_user       ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_category   ON tasks(category_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_project    ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date   ON tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_tasks_expires_at ON tasks(expires_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_deleted_at ON tasks(deleted_at);
 
 -- ---------------------------------------------------------
 -- 5. schedules
@@ -140,7 +140,7 @@ CREATE INDEX idx_tasks_deleted_at ON tasks(deleted_at);
 --      하려면 이 컬럼이 필요함. 항상 start_at으로부터 재계산 가능한
 --      파생값이라 데이터 정합성 문제는 없음.
 -- ---------------------------------------------------------
-CREATE TABLE schedules (
+CREATE TABLE IF NOT EXISTS schedules (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id     INTEGER NOT NULL
                 REFERENCES tasks(id) ON DELETE CASCADE,
@@ -151,15 +151,15 @@ CREATE TABLE schedules (
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_schedules_task       ON schedules(task_id);
-CREATE INDEX idx_schedules_local_date ON schedules(local_date);
+CREATE INDEX IF NOT EXISTS idx_schedules_task       ON schedules(task_id);
+CREATE INDEX IF NOT EXISTS idx_schedules_local_date ON schedules(local_date);
 
 -- ---------------------------------------------------------
 -- 6. priority_pins
 --    - 아이젠하워 매트릭스 좌표. task 1:1.
 --    - AI값과 유저값을 분리 저장, 판단 근거도 보존.
 -- ---------------------------------------------------------
-CREATE TABLE priority_pins (
+CREATE TABLE IF NOT EXISTS priority_pins (
   id                 INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id            INTEGER NOT NULL UNIQUE
                        REFERENCES tasks(id) ON DELETE CASCADE,
@@ -185,7 +185,7 @@ CREATE TABLE priority_pins (
 --      복잡해짐(서머타임 등). 실제 렌더링 시에는 user_settings.timezone +
 --      이 값을 조합해 그날의 로컬 시간으로 표시.
 -- ---------------------------------------------------------
-CREATE TABLE habits (
+CREATE TABLE IF NOT EXISTS habits (
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id             INTEGER NOT NULL UNIQUE
                         REFERENCES tasks(id) ON DELETE CASCADE,
@@ -206,7 +206,7 @@ CREATE TABLE habits (
 -- 8. habit_daily_overrides
 --    - 특정 날짜만 시간을 다르게 세팅한 경우.
 -- ---------------------------------------------------------
-CREATE TABLE habit_daily_overrides (
+CREATE TABLE IF NOT EXISTS habit_daily_overrides (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   habit_id    INTEGER NOT NULL
                 REFERENCES habits(id) ON DELETE CASCADE,
@@ -222,7 +222,7 @@ CREATE TABLE habit_daily_overrides (
 -- 9. habit_logs
 --    - 일자별 달성 여부. 월간 캘린더 점 표시용.
 -- ---------------------------------------------------------
-CREATE TABLE habit_logs (
+CREATE TABLE IF NOT EXISTS habit_logs (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   habit_id    INTEGER NOT NULL
                 REFERENCES habits(id) ON DELETE CASCADE,
@@ -232,14 +232,14 @@ CREATE TABLE habit_logs (
   UNIQUE (habit_id, date)
 );
 
-CREATE INDEX idx_habit_logs_date ON habit_logs(date);
+CREATE INDEX IF NOT EXISTS idx_habit_logs_date ON habit_logs(date);
 
 -- ---------------------------------------------------------
 -- 10. energy_logs
 --     - 시간대별 에너지 상태 (독립 로그).
 --     - AI가 "이 시간대 평소 에너지"를 참조할 때 사용.
 -- ---------------------------------------------------------
-CREATE TABLE energy_logs (
+CREATE TABLE IF NOT EXISTS energy_logs (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id      INTEGER NOT NULL
                  REFERENCES users(id) ON DELETE CASCADE,
@@ -249,14 +249,14 @@ CREATE TABLE energy_logs (
   created_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_energy_logs_user_date ON energy_logs(user_id, date);
-CREATE INDEX idx_energy_logs_slot      ON energy_logs(time_slot);
+CREATE INDEX IF NOT EXISTS idx_energy_logs_user_date ON energy_logs(user_id, date);
+CREATE INDEX IF NOT EXISTS idx_energy_logs_slot      ON energy_logs(time_slot);
 
 -- ---------------------------------------------------------
 -- 11. conversations
 --     - 순수 대화 turn만 저장 (텍스트).
 -- ---------------------------------------------------------
-CREATE TABLE conversations (
+CREATE TABLE IF NOT EXISTS conversations (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id     INTEGER NOT NULL
                 REFERENCES users(id) ON DELETE CASCADE,
@@ -265,13 +265,13 @@ CREATE TABLE conversations (
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_conversations_user_created ON conversations(user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_conversations_user_created ON conversations(user_id, created_at);
 
 -- ---------------------------------------------------------
 -- 12. action_logs
 --     - AI 함수 호출 기록. conversations와 FK로 연결.
 -- ---------------------------------------------------------
-CREATE TABLE action_logs (
+CREATE TABLE IF NOT EXISTS action_logs (
   id               INTEGER PRIMARY KEY AUTOINCREMENT,
   conversation_id  INTEGER NOT NULL
                      REFERENCES conversations(id) ON DELETE CASCADE,
@@ -280,14 +280,14 @@ CREATE TABLE action_logs (
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_action_logs_conversation ON action_logs(conversation_id);
-CREATE INDEX idx_action_logs_type         ON action_logs(action_type);
+CREATE INDEX IF NOT EXISTS idx_action_logs_conversation ON action_logs(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_action_logs_type         ON action_logs(action_type);
 
 -- ---------------------------------------------------------
 -- 13. event_followups
 --     - "8/14 발표 어떠셨어요" 같은 사후 언급 플래그.
 -- ---------------------------------------------------------
-CREATE TABLE event_followups (
+CREATE TABLE IF NOT EXISTS event_followups (
   id              INTEGER PRIMARY KEY AUTOINCREMENT,
   task_id         INTEGER NOT NULL
                     REFERENCES tasks(id) ON DELETE CASCADE,
@@ -298,5 +298,5 @@ CREATE TABLE event_followups (
   created_at      TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_event_followups_task  ON event_followups(task_id);
-CREATE INDEX idx_event_followups_shown ON event_followups(event_date, followup_shown);
+CREATE INDEX IF NOT EXISTS idx_event_followups_task  ON event_followups(task_id);
+CREATE INDEX IF NOT EXISTS idx_event_followups_shown ON event_followups(event_date, followup_shown);
