@@ -1,0 +1,5 @@
+node_modules/
+db/scheduler.db
+db/scheduler.db-journal
+db/scheduler.db-wal
+db/scheduler.db-shm
