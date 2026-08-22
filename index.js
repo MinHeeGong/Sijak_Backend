@@ -9,7 +9,9 @@ const energyLogsRouter = require('./routes/energy_logs');
 const eventFollowupsRouter = require('./routes/event_followups');
 
 const app = express();
-const PORT = 4000;
+// Render 같은 호스팅 서비스는 앱마다 랜덤한 포트를 배정하고
+// process.env.PORT로 알려줍니다. 로컬 개발 시엔 이 값이 없으니 4000을 기본값으로 사용.
+const PORT = process.env.PORT || 4000;
 
 app.use(cors());
 app.use(express.json());
