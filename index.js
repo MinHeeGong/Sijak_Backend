@@ -7,6 +7,7 @@ const schedulesRouter = require('./routes/schedules');
 const priorityPinsRouter = require('./routes/priority_pins');
 const energyLogsRouter = require('./routes/energy_logs');
 const eventFollowupsRouter = require('./routes/event_followups');
+const chatRouter = require('./routes/chat');
 
 const app = express();
 // Render 같은 호스팅 서비스는 앱마다 랜덤한 포트를 배정하고
@@ -27,6 +28,7 @@ app.use('/api/schedules', schedulesRouter);
 app.use('/api/priority-pins', priorityPinsRouter);
 app.use('/api/energy-logs', energyLogsRouter);
 app.use('/api/event-followups', eventFollowupsRouter);
+app.use('/api/chat', chatRouter);
 
 app.listen(PORT, () => {
   console.log(`Tdi.ai backend listening on http://localhost:${PORT}`);
