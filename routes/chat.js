@@ -11,6 +11,12 @@ const router = express.Router();
 
 const MAX_TOOL_LOOPS = 6; // 무한루프 방지 (함수 호출이 이 횟수를 넘으면 강제 종료)
 
+function loadAssignmentMode(userId) {
+  db.prepare(`INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)`).run(userId);
+  const row = db.prepare(`SELECT assignment_mode FROM user_settings WHERE user_id = ?`).get(userId);
+  return row?.assignment_mode ?? 'ask';
+}
+
 function loadRecentHistory(userId, limit = 20) {
   const rows = db
     .prepare(
@@ -57,10 +63,15 @@ router.post('/', async (req, res) => {
     // 2) 최근 대화 이력 + 이번 메시지로 messages 배열 구성
     let messages = loadRecentHistory(user_id, 20);
 
+    // system prompt는 assignment_mode에 따라 동작이 달라진다고 설명하고 있었지만,
+    // 정작 실제 값을 한 번도 전달받은 적이 없었음 (버그) - 여기서 실제 값을 주입.
+    const assignmentMode = loadAssignmentMode(user_id);
+    const dynamicSystem = `${SYSTEM_PROMPT}\n\n## 현재 유저 설정 (실시간 값)\n- user_settings.assignment_mode = "${assignmentMode}"\n  (auto: 확인 없이 즉시 배치 / ask: 배치 전 반드시 확인받고 승낙 시에만 함수 호출)`;
+
     // 3) Claude 호출 -> 함수 호출이 나오면 실행 후 결과를 다시 넣어서 재호출 (반복)
     let finalText = '';
     for (let i = 0; i < MAX_TOOL_LOOPS; i++) {
-      const response = await callClaude({ system: SYSTEM_PROMPT, messages, tools });
+      const response = await callClaude({ system: dynamicSystem, messages, tools });
 
       const toolUseBlocks = response.content.filter((b) => b.type === 'tool_use');
       const textBlocks = response.content.filter((b) => b.type === 'text');

@@ -3,10 +3,13 @@ const express = require('express');
 const cors = require('cors');
 const tasksRouter = require('./routes/tasks');
 const categoriesRouter = require('./routes/categories');
+const projectsRouter = require('./routes/projects');
 const schedulesRouter = require('./routes/schedules');
 const priorityPinsRouter = require('./routes/priority_pins');
 const energyLogsRouter = require('./routes/energy_logs');
 const eventFollowupsRouter = require('./routes/event_followups');
+const dailyMemosRouter = require('./routes/daily_memos');
+const userSettingsRouter = require('./routes/user_settings');
 const chatRouter = require('./routes/chat');
 
 const app = express();
@@ -24,12 +27,15 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/tasks', tasksRouter);
 app.use('/api/categories', categoriesRouter);
+app.use('/api/projects', projectsRouter);
 app.use('/api/schedules', schedulesRouter);
 app.use('/api/priority-pins', priorityPinsRouter);
 app.use('/api/energy-logs', energyLogsRouter);
 app.use('/api/event-followups', eventFollowupsRouter);
+app.use('/api/daily-memos', dailyMemosRouter);
+app.use('/api/user-settings', userSettingsRouter);
 app.use('/api/chat', chatRouter);
 
 app.listen(PORT, () => {
-  console.log(`Tdi.ai backend listening on http://localhost:${PORT}`);
+  console.log(`Sijak backend listening on http://localhost:${PORT}`);
 });

@@ -300,3 +300,20 @@ CREATE TABLE IF NOT EXISTS event_followups (
 
 CREATE INDEX IF NOT EXISTS idx_event_followups_task  ON event_followups(task_id);
 CREATE INDEX IF NOT EXISTS idx_event_followups_shown ON event_followups(event_date, followup_shown);
+
+-- ---------------------------------------------------------
+-- 15. daily_memos
+--     - 월간 캘린더 하단 메모 기능. 날짜당 1개만 허용.
+-- ---------------------------------------------------------
+CREATE TABLE IF NOT EXISTS daily_memos (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id     INTEGER NOT NULL
+                REFERENCES users(id) ON DELETE CASCADE,
+  date        TEXT NOT NULL,               -- 'YYYY-MM-DD'
+  content     TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (user_id, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_daily_memos_user_date ON daily_memos(user_id, date);
