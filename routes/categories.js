@@ -53,6 +53,37 @@ router.post('/', (req, res) => {
   }
 });
 
+// PATCH /api/categories/bulk  (마인드맵뷰: 라쏘로 다중 선택 후 부모 카테고리 일괄 변경)
+// body: { category_ids: [1,2,3], parent_id }  (parent_id는 null 가능 - 최상위로 이동)
+// 반드시 /:id 라우트보다 위에 있어야 '/bulk'가 :id로 잘못 매칭되지 않음.
+router.patch('/bulk', (req, res) => {
+  const { category_ids, parent_id = null } = req.body;
+  if (!Array.isArray(category_ids) || category_ids.length === 0) {
+    return fail(res, 'category_ids는 비어있지 않은 배열이어야 합니다.');
+  }
+  if (parent_id != null && category_ids.includes(parent_id)) {
+    return fail(res, '카테고리를 자기 자신(또는 선택된 항목)의 하위로 옮길 수 없습니다.');
+  }
+
+  const txn = db.transaction((ids) => {
+    const stmt = db.prepare(
+      `UPDATE categories SET parent_id = @parent_id, updated_at = @updated_at WHERE id = @id`
+    );
+    const results = [];
+    for (const id of ids) {
+      stmt.run({ id, parent_id, updated_at: new Date().toISOString() });
+      results.push(db.prepare(`SELECT * FROM categories WHERE id = ?`).get(id));
+    }
+    return results;
+  });
+
+  try {
+    return ok(res, txn(category_ids));
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
 // PUT /api/categories/:id  (이름/색상 변경 등)
 router.put('/:id', (req, res) => {
   const existing = db.prepare(`SELECT * FROM categories WHERE id = ?`).get(req.params.id);

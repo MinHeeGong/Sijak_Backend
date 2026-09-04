@@ -21,7 +21,10 @@ async function callClaude({ system, messages, tools }) {
     },
     body: JSON.stringify({
       model: MODEL,
-      max_tokens: 1024,
+      // 1024였던 걸 4096으로 올림 - 길게 답할 때 문장 중간에서 잘리던 버그의 원인.
+      // (참고: MAX_TOOL_LOOPS 안에서 도구 호출을 여러 번 거치는 경우엔 이 값과 별개로
+      //  services/chat.js의 반복 횟수 제한 때문에 끊길 수 있음 - 그건 별도 이슈로 관리 중)
+      max_tokens: 4096,
       system,
       messages,
       tools,

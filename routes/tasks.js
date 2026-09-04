@@ -93,6 +93,42 @@ router.post('/', (req, res) => {
   }
 });
 
+// PATCH /api/tasks/bulk  (카테고리 탭: 다중 선택 후 일괄 이동/삭제)
+// body: { task_ids: [1,2,3], category_id?, project_id?, deleted_at? }
+// 반드시 /:id 라우트보다 위에 있어야 '/bulk'가 :id로 잘못 매칭되지 않음.
+router.patch('/bulk', (req, res) => {
+  const { task_ids, ...updates } = req.body;
+  if (!Array.isArray(task_ids) || task_ids.length === 0) {
+    return fail(res, 'task_ids는 비어있지 않은 배열이어야 합니다.');
+  }
+
+  const allowed = ['category_id', 'project_id', 'deleted_at', 'completed_at'];
+  const fields = allowed.filter((key) => key in updates);
+  if (fields.length === 0) return fail(res, '수정할 필드가 없습니다.');
+
+  const setClause = fields.map((key) => `${key} = @${key}`).join(', ');
+
+  const txn = db.transaction((ids) => {
+    const stmt = db.prepare(
+      `UPDATE tasks SET ${setClause}, updated_at = @updated_at WHERE id = @id`
+    );
+    const results = [];
+    for (const id of ids) {
+      const params = { id, updated_at: new Date().toISOString() };
+      fields.forEach((key) => (params[key] = updates[key]));
+      stmt.run(params);
+      results.push(db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(id));
+    }
+    return results;
+  });
+
+  try {
+    return ok(res, txn(task_ids));
+  } catch (err) {
+    return fail(res, err.message, 400);
+  }
+});
+
 // PUT /api/tasks/:id  (부분 수정 지원 - 넘어온 필드만 업데이트)
 router.put('/:id', (req, res) => {
   const existing = db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(req.params.id);
