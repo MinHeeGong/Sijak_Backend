@@ -36,6 +36,12 @@ router.put('/', (req, res) => {
     'default_deletion_policy',
     'max_habits_per_day',
     'color_order',
+    'purpose',
+    'planning_type',
+    'burnout_signal',
+    'adhd_signal',
+    'onboarding_notes',
+    'onboarding_completed',
   ];
   const fields = updatable.filter((key) => key in updates);
   if (fields.length === 0) return fail(res, '수정할 필드가 없습니다.');
