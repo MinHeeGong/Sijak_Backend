@@ -133,6 +133,77 @@ const tools = [
       required: ['task_id', 'event_date'],
     },
   },
+  {
+    name: 'complete_task',
+    description: '유저가 "이거 했어", "완료했어" 처럼 task를 끝냈다고 말하면 호출해서 완료 처리합니다.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id: { type: 'integer' },
+      },
+      required: ['task_id'],
+    },
+  },
+  {
+    name: 'update_task',
+    description:
+      '기존 task의 제목/메모/마감일/카테고리/예상 소요시간을 수정합니다. 넘긴 필드만 바뀝니다. task_id는 find_tasks로 먼저 찾으세요.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id: { type: 'integer' },
+        title: { type: 'string' },
+        memo: { type: 'string' },
+        due_date: { type: 'string', description: "'YYYY-MM-DD'" },
+        category_id: { type: 'integer' },
+        estimated_minutes: { type: 'integer' },
+      },
+      required: ['task_id'],
+    },
+  },
+  {
+    name: 'delete_task',
+    description: '유저가 명시적으로 삭제를 요청한 task를 삭제(soft delete)합니다.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        task_id: { type: 'integer' },
+      },
+      required: ['task_id'],
+    },
+  },
+  {
+    name: 'find_schedules',
+    description:
+      '"내일 일정 뭐있어", "이번 주에 뭐 있지" 처럼 특정 날짜/기간에 배정된 일정을 조회합니다. reschedule_task를 쓰기 전에 schedule_id를 모르면 먼저 이걸로 찾으세요.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: "단일 날짜 조회. 'YYYY-MM-DD'" },
+        start_date: { type: 'string', description: '기간 조회 시작일 (date 대신 사용)' },
+        end_date: { type: 'string', description: '기간 조회 종료일 (date 대신 사용)' },
+      },
+    },
+  },
+  {
+    name: 'present_choices',
+    description:
+      '유저에게 버튼으로 고를 수 있는 선택지를 제시합니다. DB에 아무 영향도 주지 않습니다 - 확인/분기가 필요한 순간에만 사용하세요 (예: 여러 시간대 옵션 중 선택, "이대로 진행할까요?" 확인). 이 함수를 호출하면 그 턴에서 다른 함수는 실행되지 않으니, 같은 응답에서 실제 작업(schedule_task 등)과 함께 호출하지 마세요.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        prompt: { type: 'string', description: '선택지와 함께 보여줄 질문/설명 문구' },
+        options: {
+          type: 'array',
+          items: { type: 'string' },
+          minItems: 2,
+          maxItems: 4,
+          description: '유저가 누르면 그 텍스트가 그대로 다음 유저 메시지로 전송됩니다.',
+        },
+      },
+      required: ['prompt', 'options'],
+    },
+  },
 ];
 
 module.exports = { tools };

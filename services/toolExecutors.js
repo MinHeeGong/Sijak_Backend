@@ -168,7 +168,62 @@ function createFollowupFlag(userId, { task_id, event_date }) {
   return db.prepare(`SELECT * FROM event_followups WHERE id = ?`).get(info.lastInsertRowid);
 }
 
-// dispatch 테이블: tools.js의 name과 정확히 일치해야 함
+// ---- complete_task ----
+// "이거 했어" 류의 완료 처리. 여태 이 함수가 없어서 DB에 completed_at을 채울 방법이 없었음.
+function completeTask(userId, { task_id }) {
+  db.prepare(
+    `UPDATE tasks SET completed_at = datetime('now'), updated_at = datetime('now')
+     WHERE id = ? AND user_id = ?`
+  ).run(task_id, userId);
+
+  return db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(task_id);
+}
+
+// ---- update_task ----
+// routes/tasks.js의 PUT 로직과 같은 패턴. 넘긴 필드만 갱신.
+function updateTaskTool(userId, { task_id, ...updates }) {
+  const allowed = ['title', 'memo', 'due_date', 'category_id', 'estimated_minutes'];
+  const fields = allowed.filter((key) => key in updates);
+  if (fields.length === 0) throw new Error('수정할 필드가 없습니다.');
+
+  const setClause = fields.map((key) => `${key} = @${key}`).join(', ');
+  const params = { task_id, updated_at: new Date().toISOString() };
+  fields.forEach((key) => (params[key] = updates[key]));
+
+  db.prepare(`UPDATE tasks SET ${setClause}, updated_at = @updated_at WHERE id = @task_id`).run(params);
+
+  return db.prepare(`SELECT * FROM tasks WHERE id = ?`).get(task_id);
+}
+
+// ---- delete_task ----
+function deleteTaskTool(userId, { task_id }) {
+  db.prepare(`UPDATE tasks SET deleted_at = datetime('now') WHERE id = ? AND user_id = ?`).run(task_id, userId);
+  return { task_id, deleted: true };
+}
+
+// ---- find_schedules ----
+// "내일 일정 뭐있어" 류 조회. reschedule_task에 필요한 schedule_id를 모델이 스스로
+// 못 찾아서 막히는 경우가 많았던 것의 해결책.
+function findSchedules(userId, { date, start_date, end_date }) {
+  const from = start_date ?? date;
+  const to = end_date ?? date;
+  if (!from || !to) throw new Error('date 또는 start_date/end_date 중 하나는 필요합니다.');
+
+  const rows = db
+    .prepare(
+      `SELECT s.id AS schedule_id, s.start_at, s.end_at, s.local_date, t.id AS task_id, t.title
+       FROM schedules s
+       JOIN tasks t ON t.id = s.task_id
+       WHERE t.user_id = ? AND t.deleted_at IS NULL AND s.local_date BETWEEN ? AND ?
+       ORDER BY s.start_at ASC`
+    )
+    .all(userId, from, to);
+
+  return { matches: rows };
+}
+
+// dispatch 테이블: tools.js의 name과 정확히 일치해야 함.
+// present_choices는 여기 없음 - chat.js가 DB 실행 전에 먼저 가로채서 처리함.
 const executors = {
   find_tasks: findTasks,
   create_category: createCategory,
@@ -179,6 +234,10 @@ const executors = {
   reschedule_task: rescheduleTask,
   log_energy: logEnergy,
   create_followup_flag: createFollowupFlag,
+  complete_task: completeTask,
+  update_task: updateTaskTool,
+  delete_task: deleteTaskTool,
+  find_schedules: findSchedules,
 };
 
 module.exports = { executors };

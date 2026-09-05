@@ -21,11 +21,14 @@ async function callClaude({ system, messages, tools }) {
     },
     body: JSON.stringify({
       model: MODEL,
-      // 1024였던 걸 4096으로 올림 - 길게 답할 때 문장 중간에서 잘리던 버그의 원인.
-      // (참고: MAX_TOOL_LOOPS 안에서 도구 호출을 여러 번 거치는 경우엔 이 값과 별개로
-      //  services/chat.js의 반복 횟수 제한 때문에 끊길 수 있음 - 그건 별도 이슈로 관리 중)
-      max_tokens: 4096,
-      system,
+      // 응답을 2~3문장으로 제한하는 systemPrompt 지침이 주된 제어 수단이고,
+      // 이 값은 물리적 안전장치. 너무 낮으면(예전 1024) 정상적으로 긴 답이
+      // 필요한 경우(리스트 나열 등) 잘릴 수 있어서 800으로 여유를 둠.
+      max_tokens: 800,
+      // system을 문자열이 아니라 cache_control 붙은 블록으로 감싸서 prompt caching 적용.
+      // chat.js가 매 요청 (거의 동일한) 긴 시스템 프롬프트 + 유저 설정을 다시 보내고 있어서,
+      // 이렇게 하면 5분 이내 재요청은 이 블록을 다시 처리하지 않고 캐시를 씀 -> 응답 속도/비용 개선.
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages,
       tools,
     }),
