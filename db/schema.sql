@@ -11,11 +11,16 @@ PRAGMA foreign_keys = ON;
 -- ---------------------------------------------------------
 CREATE TABLE IF NOT EXISTS users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  email         TEXT NOT NULL UNIQUE,
+  email         TEXT NOT NULL,
   display_name  TEXT,
+  provider      TEXT,                  -- 'google' | 'kakao' | 'naver' (레거시 demo 유저는 NULL)
+  provider_user_id TEXT,               -- 각 OAuth 제공사가 발급하는 고유 ID
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
+-- provider+provider_user_id UNIQUE 인덱스는 여기서 안 만듭니다.
+-- 기존(레거시) DB는 이 시점에 아직 provider 컬럼이 없어서 여기서 만들면 에러가 나요.
+-- db/connection.js가 ALTER TABLE로 컬럼을 먼저 채운 다음에 인덱스를 만듭니다.
 
 -- ---------------------------------------------------------
 -- 2. user_settings
@@ -34,6 +39,14 @@ CREATE TABLE IF NOT EXISTS user_settings (
                             CHECK (default_deletion_policy IN ('24h', '7d', '30d', 'manual')),
   max_habits_per_day      INTEGER NOT NULL DEFAULT 10,
   color_order             TEXT NOT NULL DEFAULT '["#D5F1FF","#E4DCFC","#CCFAE4","#CBF0EA","#FDF0DC","#FDDFEB"]',
+  -- 온보딩 (신규)
+  purpose                 TEXT
+                            CHECK (purpose IN ('project_mgmt','simple_schedule','priority_mgmt','low_activation') OR purpose IS NULL),
+  planning_type           INTEGER,     -- 0/1, "계획 세우면 지키는 편" 응답
+  burnout_signal          INTEGER,     -- 0/1, "하루 시작이 유독 힘들다" 응답
+  adhd_signal             INTEGER,     -- 0/1, "할일 많아지면 손을 못 댄다" 응답
+  onboarding_notes        TEXT,        -- 자유 서술형 메모 (선택 항목)
+  onboarding_completed    INTEGER NOT NULL DEFAULT 0,
   created_at              TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at              TEXT NOT NULL DEFAULT (datetime('now'))
 );

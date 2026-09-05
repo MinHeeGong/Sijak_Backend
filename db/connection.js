@@ -18,6 +18,27 @@ db.pragma('foreign_keys = ON');
 const schemaPath = path.join(__dirname, 'schema.sql');
 db.exec(fs.readFileSync(schemaPath, 'utf-8'));
 
+// CREATE TABLE IF NOT EXISTS는 이미 존재하는 테이블엔 새 컬럼을 추가해주지 않아서,
+// 이전에 만들어진 scheduler.db(서버가 이미 한 번이라도 떠서 users/user_settings가
+// 옛날 스키마로 이미 존재하는 경우)에는 이 마이그레이션이 따로 필요함.
+// ALTER TABLE ADD COLUMN은 이미 있으면 에러가 나므로 매번 try/catch로 무시.
+function safeAddColumn(table, columnDef) {
+  try {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
+  } catch (err) {
+    if (!/duplicate column name/i.test(err.message)) throw err;
+  }
+}
+safeAddColumn('users', `provider TEXT`);
+safeAddColumn('users', `provider_user_id TEXT`);
+safeAddColumn('user_settings', `purpose TEXT`);
+safeAddColumn('user_settings', `planning_type INTEGER`);
+safeAddColumn('user_settings', `burnout_signal INTEGER`);
+safeAddColumn('user_settings', `adhd_signal INTEGER`);
+safeAddColumn('user_settings', `onboarding_notes TEXT`);
+safeAddColumn('user_settings', `onboarding_completed INTEGER NOT NULL DEFAULT 0`);
+db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_provider ON users(provider, provider_user_id)`);
+
 // 프론트엔드가 로그인 기능이 생기기 전까지 user_id=1로 고정해서 요청을 보냅니다.
 // 배포 환경마다 이 유저가 실제로 존재해야 task/schedule 등을 만들 때
 // FOREIGN KEY constraint failed가 나지 않으므로, 없으면 자동으로 만들어둡니다.
