@@ -24,10 +24,29 @@ function loadUserContext(userId) {
   db.prepare(`INSERT OR IGNORE INTO user_settings (user_id) VALUES (?)`).run(userId);
   return db
     .prepare(
-      `SELECT assignment_mode, purpose, planning_type, burnout_signal, adhd_signal, onboarding_notes
+      `SELECT assignment_mode, timezone, purpose, planning_type, burnout_signal, adhd_signal, onboarding_notes
        FROM user_settings WHERE user_id = ?`
     )
     .get(userId);
+}
+
+// LLM은 "지금이 언제인지"를 절대 스스로 알 수 없음 (학습 데이터 기준일 뿐).
+// 매 요청마다 실제 오늘/내일/모레 날짜를 명시적으로 계산해서 박아줘야
+// "내일 일정 잡아줘" 같은 요청에서 due_date/start_at을 정확히 계산할 수 있음.
+function buildDateContext(timezone) {
+  const now = new Date();
+  const fmt = (d) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d); // en-CA -> YYYY-MM-DD
+  const weekday = (d) => new Intl.DateTimeFormat('ko-KR', { timeZone: timezone, weekday: 'long' }).format(d);
+  const time = new Intl.DateTimeFormat('ko-KR', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
+
+  const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  const dayAfterTomorrow = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+
+  return `오늘 날짜: ${fmt(now)} (${weekday(now)}), 현재 시각: ${time} (타임존: ${timezone})
+내일: ${fmt(tomorrow)} (${weekday(tomorrow)})
+모레: ${fmt(dayAfterTomorrow)} (${weekday(dayAfterTomorrow)})
+"내일", "모레", "이번 주 금요일" 같은 상대적 날짜 표현은 반드시 이 기준으로 정확히 계산해서 due_date/start_at에 반영하세요. 절대 임의로 추측하지 마세요.`;
 }
 
 function loadRecentHistory(userId, limit = 12) {
@@ -88,6 +107,9 @@ router.post('/', async (req, res) => {
     if (ctx.planning_type === 0) signals.push('계획을 세워도 잘 안 지키는 편이라고 응답 (너무 빡빡한 계획 지양)');
 
     const dynamicSystem = `${SYSTEM_PROMPT}
+
+## 현재 날짜/시각 (실시간 값 - 반드시 이 기준으로 상대 날짜를 계산하세요)
+${buildDateContext(ctx.timezone)}
 
 ## 현재 유저 설정 (실시간 값)
 - user_settings.assignment_mode = "${ctx.assignment_mode}"
